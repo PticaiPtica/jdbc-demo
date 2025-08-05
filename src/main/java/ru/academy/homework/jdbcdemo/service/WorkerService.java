@@ -14,6 +14,10 @@ public class WorkerService {
     @Autowired
     private WorkerRepository workerRepository;
 
+    public WorkerService(WorkerRepository workerRepository) {
+        this.workerRepository = workerRepository;
+    }
+
     public List<Worker> getAllWorkers() {
         return workerRepository.findAll();
     }
@@ -24,7 +28,16 @@ public class WorkerService {
 
 
     public void deleteWorker(Long id) {
+        if (!workerRepository.existsById(id)) {
+            throw new RuntimeException("Worker not found with id: " + id);
+        }
         workerRepository.deleteById(id);
+    }
+    public List<Worker> getWorkers(String nameFilter) {
+        if (nameFilter != null && !nameFilter.isEmpty()) {
+            return workerRepository.findByNameContainingIgnoreCase(nameFilter);
+        }
+        return workerRepository.findAll();
     }
 
 
@@ -40,7 +53,7 @@ public class WorkerService {
 
     public Worker getWorkerById(Long id) {
         return workerRepository.findById(id)
-                .orElse(null); // Возвращаем null если работник не найден
+                .orElseThrow(() -> new RuntimeException("Worker not found with id: " + id));
     }
 
     public Worker updateWorker(Long id, Worker workerDetails) {
