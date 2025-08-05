@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en"  xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}"></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js" integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous"></script>
+</head>
+<body>
+
+
+<h1>Worker list
+    <span th:if="${totalWorkers!=null}" th:text="${totalWorkers + ' counts'}"></span>
+    <span th:if="${totalPages!=null}" th:text="${totalPages + ' pages'}"></span>
+</h1>
+<div>
+    <a class="btn add" href="/worker/create">Add</a>
+    <a class="btn deleteAll" href="/worker/deleteAll">deleteAll</a>
+    <a class="btn sortByName" href="/worker/sort">Sorting</a>
+
+</div>
+<div>
+    <input type="text" id="globalFilter" onkeyup="filterByName()" placeholder="🔍 Search persons ...">
+    <div style="margin-top: 10px">
+        <label><input type="radio" value="All" checked name="searchField">All</label>
+        <label><input type="radio" value="Name" name="searchField">Name</label>
+        <label><input type="radio" value="Position" name="searchField">Position</label>
+    </div>
+</div>
+
+<div>
+    <form th:action="@{/worker/home/filter}" th:object="${worker}">
+    <label>
+        <input type="text"   placeholder="🔍 Search persons ...">
+    </label>
+        <div>
+            <input type="submit" value="Save">
+            <a href="/worker/home">Cancel</a>
+        </div>
+
+    </form>
+</div>
+
+
+<table th:if="${!workers.isEmpty()}" border="1">
+    <tr>
+        <th onclick="sortTable(0);">Id</th>
+        <th onclick="sortTable(1);">Name</th>
+        <th onclick="sortTable(2);">Email</th>
+        <th onclick="sortTable(2);">Position</th>
+
+        <th>Button</th>
+    </tr>
+
+
+  <tr th:each="worker:${workers}" th:attr="data-id=${worker.getId()}">
+    <td th:text="${worker.getId()}"></td>
+    <td th:text="${worker.getName()}"></td>
+    <td th:text="${worker.getEmail()}"></td>
+    <td th:text="${worker.getPosition()}"></td>
+    <td class="btns">
+      <td class="btns">
+          <a th:href="@{/worker/delete/{id}(id=${worker.getId()},page=${currentPage},size=${size})}" class="btn delete">Delete</a>
+          <a href="#" th:onclick="'deleteByRow('+${worker.getId()}+')'" class="btn delete">Delete 2</a>
+          <a th:href="@{/worker/edit/{id}(id=${worker.getId()})}" class="btn edit">Edit</a>
+      </td>
+
+  </tr>
+    <form id="sizeForm" method="get" action="/worker/home" class="per-page-form">
+        <label for="sizeSelect">Show per page:</label>
+        <select name="size" id="sizeSelect" class="form-select" onchange="this.form.submit()">
+            <option th:value="5" th:selected="${size == 5}">5</option>
+            <option th:value="10" th:selected="${size == 10}">10</option>
+            <option th:value="20" th:selected="${size == 20}">20</option>
+            <option th:value="40" th:selected="${size == 40}">40</option>
+            <option th:value="100" th:selected="${size == 100}">100</option>
+        </select>
+
+        <!-- Сохраняем текущую страницу и другие параметры -->
+        <input type="hidden" name="page" th:value="${currentPage}">
+        <th:block th:each="param : ${param}" th:unless="${param.key == 'size' || param.key == 'page'}">
+            <input type="hidden" th:name="${param.key}" th:value="${param.value[0]}" th:if="${param.value != null and param.value.length > 0}">
+        </th:block>
+    </form>
+
+</table>
+<div th:if="${totalPages > 1}">
+    <div class="mainPages">
+        <span>Pages :</span>
+        <hr>
+        <div class="container">
+            <a th:if="${currentPage>6}" class="myPage"  th:href="@{/worker/home(page=${1},size=${size})}" >
+                ◀
+            </a>
+            <a th:if="${currentPage>1}" class="myPage"  th:href="@{/worker/home(page=${currentPage-1},size=${size})}" >
+                ⏪
+            </a>
+            <span th:each="i : ${#numbers.sequence(startPage,endPage)}">
+                <a th:style="${i==currentPage} ? ' background: blue;':''" class="myPage"
+                   th:href="@{/worker/home(page=${i},size=${size})}" th:text="${i}">
+                </a>
+            </span>
+            <a th:if="${currentPage<totalPages}" class="myPage"  th:href="@{/worker/home(page=${currentPage+1},size=${size})}" >
+                ⏩
+            </a>
+            <a th:if="${currentPage<(totalPages-7)}" class="myPage"  th:href="@{/worker/home(page=${totalPages},size=${size})}" >
+                ▶
+            </a>
+        </div>
+    </div>
+</div>
+
+
+<p th:if="${workers.isEmpty()}">listWorkers are empty</p>
+<script>
+
+
+
+    function filterByName() {
+        let input = document.getElementById('globalFilter');
+        let value = input.value.toLowerCase();
+        let selectedFields = document.querySelector("input[name='searchField']:checked").value;
+        const fieldIndexMap = {
+            "All": 0,
+            "Name": 1,
+            "Type": 2
+        };
+        let columIndex = fieldIndexMap[selectedFields];
+
+        let tbody = document.querySelector('tbody');
+        let rows = tbody.querySelectorAll('tr');
+
+        for (let row of rows) {
+            let cells = row.getElementsByTagName('td');
+            if (columIndex == 0) {
+                let find = false;
+                for (let cell of cells) {
+                    if (cell.innerText.toLowerCase().includes(value)) {
+                        find = true;
+                        break;
+                    }
+                }
+                row.style.display = (find) ? "" : "none";
+            } else {
+                let cell = row.getElementsByTagName('td')[columIndex];
+
+                if (cell.innerText.toLowerCase().includes(value)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            }
+
+
+        }
+
+    }
+
+
+    async function deleteByRow(id) {
+        let confirmed = confirm("Are you sure ? ");
+        if (!confirmed) return;
+
+        console.log(id + " worker removed")
+        let tr = document.querySelector(`tr[data-id='${id}']`);
+        console.log(tr)
+        tr.remove();
+        let response = await fetch(`/worker/api/delete/${id}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            console.log(response)
+            console.log("Dannie bili udaleni")
+            let text = await response.text();
+            console.log(text)
+        } else {
+            console.log("Not deleted")
+        }
+
+
+    }
+
+    let sortStates = {};
+
+    function sortTable(columIndex) {
+        let body = document.getElementsByTagName('tbody')[0];
+        let rows = Array.from(body.getElementsByTagName('tr'));
+
+        if (sortStates[columIndex] === undefined) {
+            sortStates[columIndex] = 'asc';
+        }
+        console.log(`sortStates[${columIndex}]=` + sortStates[columIndex])
+
+        let sortMulti = sortStates[columIndex] === 'asc' ? 1 : -1;
+
+        let sortedRow = rows.sort((rowA, rowB) => {
+            let cellA = rowA.cells[columIndex].innerText.toLowerCase();
+            let cellB = rowB.cells[columIndex].innerText.toLowerCase();
+
+            if (!isNaN(cellA) && !isNaN(cellB)) {
+                return sortMulti * (Number(cellA) - Number(cellB));
+            }
+            return sortMulti * (cellA.localeCompare(cellB));
+        })
+
+        if (sortStates[columIndex] === 'asc') {
+            sortStates[columIndex] = 'desc'
+        } else {
+            sortStates[columIndex] = 'asc';
+        }
+
+
+        sortedRow.forEach(row => {
+            body.append(row);
+        });
+    }
+</script>
+
+
+</body>
+</html>
